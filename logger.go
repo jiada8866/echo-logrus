@@ -7,9 +7,10 @@ import (
 	"net/http"
 	"time"
 
+	"os"
+
 	"github.com/Sirupsen/logrus"
 	"github.com/labstack/echo"
-	"os"
 )
 
 var host string
@@ -36,16 +37,14 @@ func NewWithNameAndLogger(name string, l *logrus.Logger) echo.MiddlewareFunc {
 			start := time.Now()
 
 			entry := l.WithFields(logrus.Fields{
-				"request": c.Request().URI(),
-				"method":  c.Request().Method(),
-				"remote":  c.Request().RemoteAddress(),
+				"request": c.Request().RequestURI,
+				"method":  c.Request().Method,
+				"remote":  c.Request().RemoteAddr,
 			})
 
-			if reqID := c.Request().Header().Get("X-Request-Id"); reqID != "" {
+			if reqID := c.Request().Header.Get("X-Request-Id"); reqID != "" {
 				entry = entry.WithField("request_id", reqID)
 			}
-
-			entry.Info("started handling request")
 
 			if err := next(c); err != nil {
 				c.Error(err)
@@ -54,22 +53,23 @@ func NewWithNameAndLogger(name string, l *logrus.Logger) echo.MiddlewareFunc {
 			latency := time.Since(start)
 
 			entry.WithFields(logrus.Fields{
-				"status":      c.Response().Status(),
-				"text_status": http.StatusText(c.Response().Status()),
+				"status":      c.Response().Status,
+				"text_status": http.StatusText(c.Response().Status),
 				"took":        latency,
 				fmt.Sprintf("measure#%s.latency", name): latency.Nanoseconds(),
-			}).Info("completed handling request")
+			}).Info()
 
 			return nil
 		}
 	}
 }
 
+// NewWithTimeFormat is new log with time format
 func NewWithTimeFormat(timeFormat string) echo.MiddlewareFunc {
 	return LogrusLogger(logrus.StandardLogger(), timeFormat)
 }
 
-// Another variant for better performance.
+// LogrusLogger is Another variant for better performance.
 // With single log entry and time format.
 func LogrusLogger(l *logrus.Logger, timeFormat string) echo.MiddlewareFunc {
 	return func(next echo.HandlerFunc) echo.HandlerFunc {
@@ -86,15 +86,15 @@ func LogrusLogger(l *logrus.Logger, timeFormat string) echo.MiddlewareFunc {
 
 			entry := l.WithFields(logrus.Fields{
 				"server":  host,
-				"path":    c.Request().URI(),
-				"method":  c.Request().Method(),
-				"ip":      c.Request().RemoteAddress(),
-				"status":  c.Response().Status(),
+				"path":    c.Request().RequestURI,
+				"method":  c.Request().Method,
+				"ip":      c.Request().RemoteAddr,
+				"status":  c.Response().Status,
 				"latency": latency,
 				"time":    time.Now().Format(timeFormat),
 			})
 
-			if reqID := c.Request().Header().Get("X-Request-Id"); reqID != "" {
+			if reqID := c.Request().Header.Get("X-Request-Id"); reqID != "" {
 				entry = entry.WithField("request_id", reqID)
 			}
 
